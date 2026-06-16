@@ -4,7 +4,6 @@ import aiofiles
 import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import List
-from pathlib import Path
 
 from app.core.config import settings
 from app.models.schemas import DocumentUploadResponse
@@ -30,7 +29,8 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Missing filename in uploaded file.")
 
     # Validate file type
-    ext = Path(file.filename).suffix.lstrip(".").lower()
+    split_filename = file.filename.rsplit(".", 1)
+    ext = split_filename[1].lower() if len(split_filename) == 2 else ""
     if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -80,14 +80,12 @@ async def upload_document(file: UploadFile = File(...)):
             num_chunks=num_chunks,
             message=f"Successfully indexed '{file.filename}' into {num_chunks} chunks.",
         )
-    except HTTPException:
-        raise
     except RuntimeError as exc:
         logger.exception("RAG service not available during upload")
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Upload processing failed")
-        raise HTTPException(status_code=500, detail=f"Upload processing failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Document processing or indexing failed.") from exc
 
     finally:
         # Clean up temp file

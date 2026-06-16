@@ -60,9 +60,9 @@ class RAGService:
 
     def __init__(self):
         if not settings.GEMINI_API_KEY:
-            raise RuntimeError("Missing GEMINI_API_KEY environment variable.")
+            raise RuntimeError("GEMINI_API_KEY is required but not configured.")
         if not settings.PINECONE_API_KEY:
-            raise RuntimeError("Missing PINECONE_API_KEY environment variable.")
+            raise RuntimeError("PINECONE_API_KEY is required but not configured.")
 
         # Initialise embeddings
         self.embeddings = GoogleGenerativeAIEmbeddings(
@@ -257,6 +257,6 @@ def get_rag_service() -> RAGService:
         _rag_service = RAGService()
         return _rag_service
     except Exception as exc:
-        _rag_service_init_error = f"RAG service unavailable: {exc}"
+        _rag_service_init_error = f"RAG service unavailable: {type(exc).__name__}: {exc}"
         logger.exception("Failed to initialise RAG service")
         raise RuntimeError(_rag_service_init_error) from exc
