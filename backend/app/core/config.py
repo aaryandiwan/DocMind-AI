@@ -4,12 +4,12 @@ from typing import List
 
 class Settings(BaseSettings):
     # Gemini
-    GEMINI_API_KEY: str
+    GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-flash-latest"
     GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
 
     # Pinecone
-    PINECONE_API_KEY: str
+    PINECONE_API_KEY: str = ""
     PINECONE_ENV: str = "us-east-1"
     PINECONE_INDEX: str = "rag-qa-index-v1-3072"
 

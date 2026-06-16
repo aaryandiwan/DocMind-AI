@@ -1,5 +1,4 @@
 import logging
-import uuid
 from typing import List, Optional, Any
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -60,6 +59,11 @@ class RAGService:
     """
 
     def __init__(self):
+        if not settings.GEMINI_API_KEY:
+            raise RuntimeError("Missing GEMINI_API_KEY environment variable.")
+        if not settings.PINECONE_API_KEY:
+            raise RuntimeError("Missing PINECONE_API_KEY environment variable.")
+
         # Initialise embeddings
         self.embeddings = GoogleGenerativeAIEmbeddings(
             model=settings.GEMINI_EMBEDDING_MODEL,
@@ -232,5 +236,27 @@ class RAGService:
         logger.info(f"Deleted document {document_id} from Pinecone")
 
 
-# Singleton instance
-rag_service = RAGService()
+_rag_service: Optional[RAGService] = None
+_rag_service_init_error: Optional[str] = None
+
+
+def get_rag_service() -> RAGService:
+    """
+    Lazily initialise and return the singleton RAG service.
+    Keeps API startup alive even when external dependencies are misconfigured.
+    """
+    global _rag_service, _rag_service_init_error
+
+    if _rag_service is not None:
+        return _rag_service
+
+    if _rag_service_init_error is not None:
+        raise RuntimeError(_rag_service_init_error)
+
+    try:
+        _rag_service = RAGService()
+        return _rag_service
+    except Exception as exc:
+        _rag_service_init_error = f"RAG service unavailable: {exc}"
+        logger.exception("Failed to initialise RAG service")
+        raise RuntimeError(_rag_service_init_error) from exc
