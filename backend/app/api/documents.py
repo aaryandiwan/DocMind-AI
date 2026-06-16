@@ -7,7 +7,7 @@ from typing import List
 
 from app.core.config import settings
 from app.models.schemas import DocumentUploadResponse
-from app.services.rag_service import rag_service
+from app.services.rag_service import get_rag_service
 from app.utils.document_parser import parse_document
 
 router = APIRouter()
@@ -25,8 +25,12 @@ async def upload_document(file: UploadFile = File(...)):
     """
     Upload a document, parse it, chunk it, embed it, and store in Pinecone.
     """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Missing filename in uploaded file.")
+
     # Validate file type
-    ext = file.filename.split(".")[-1].lower()
+    split_filename = file.filename.rsplit(".", 1)
+    ext = split_filename[1].lower() if len(split_filename) == 2 else ""
     if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -57,6 +61,7 @@ async def upload_document(file: UploadFile = File(...)):
             raise HTTPException(status_code=422, detail="Could not extract text from document.")
 
         # Index into Pinecone
+        rag_service = get_rag_service()
         num_chunks = rag_service.index_document(documents, document_id)
 
         # Store metadata
@@ -75,6 +80,12 @@ async def upload_document(file: UploadFile = File(...)):
             num_chunks=num_chunks,
             message=f"Successfully indexed '{file.filename}' into {num_chunks} chunks.",
         )
+    except RuntimeError as exc:
+        logger.exception("RAG service not available during upload")
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Upload processing failed")
+        raise HTTPException(status_code=500, detail="Document processing or indexing failed.") from exc
 
     finally:
         # Clean up temp file
@@ -94,7 +105,12 @@ async def delete_document(document_id: str):
     if document_id not in documents_store:
         raise HTTPException(status_code=404, detail="Document not found.")
 
-    rag_service.delete_document(document_id)
+    try:
+        rag_service = get_rag_service()
+        rag_service.delete_document(document_id)
+    except RuntimeError as exc:
+        logger.exception("RAG service not available during delete")
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     del documents_store[document_id]
 
     return {"message": f"Document {document_id} deleted successfully."}
