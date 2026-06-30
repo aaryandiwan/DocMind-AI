@@ -1,4 +1,4 @@
-# DocMind AI🧠📄
+# RAG- (Q&A)🧠📄
 
 A professional-grade Retrieval-Augmented Generation (RAG) application that allows users to upload documents and have intelligent, context-aware conversations with them. Powered by **Google Gemini** for reasoning and **Pinecone** for high-performance vector retrieval.
 
